@@ -218,7 +218,7 @@ app.put('/user/:id/wochenplan', function (req, res) {
     var neuerTag = req.body;
     var neuerWochenplan;
 
-    var datum = req.query.date;
+
 
     MongoClient.connect(url, function (err, db) {
         var collection = db.collection("wochenplan");
@@ -250,7 +250,7 @@ app.put('/user/:id/wochenplan', function (req, res) {
                 var i;
                 var vorhanden = false;
                 for (i = 0; i < length; i++) {
-                    if (neuerTag.datum == neuerWochenplan[i].datum) {
+                    if (neuerTag.datum == neuerWochenplan.wochenplan[i].datum) {
                         i = length;
                         neuerWochenplan[i] = neuerTag;
                         vorhanden = true;
