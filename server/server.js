@@ -321,7 +321,8 @@ app.post('/user/:id/einkaufszettel', function (req, res) {
         "Donnerstag": [],
         "Freitag": [],
         "Samstag/Sonntag": [],
-        "SchlaueListe": []
+        "SchlaueListe": [],
+        "Gesamt": []
     };
     einkaufszettel.userid = id;
     MongoClient.connect(url, function (err, db) {
