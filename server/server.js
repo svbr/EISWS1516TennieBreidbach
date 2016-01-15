@@ -61,7 +61,6 @@ app.post('/user', function (req, res) {
                 //Benuzter nicht vorhanden, Benutzer wird angelegt
 
                 collection.insert(user, function (err, results) {
-                    console.log(results);
                     if (err) {
                         console.log(err);
                         res.status("404").type("text").send("user konnte nicht hinzugefügt werden! Status überarbeiten!");
@@ -70,9 +69,9 @@ app.post('/user', function (req, res) {
                         console.log(user);
                         res.send(user);
                     }
+                    db.close();
                 });
             }
-            db.close();
         });
     });
 });
@@ -87,18 +86,17 @@ app.put('/user/:id', function (req, res) {
         collection.updateOne({
             _id: ObjectID.ObjectId(id)
         }, {
-            $set: user
+            $set: neuerUser
         }, function (err, results) {
             if (err) {
                 console.log(err);
             }
-            console.log(results);
             if (results.result.n == 0) {
                 console.log("keine ID gefunden!");
                 res.status("404").type("text").send("Der User mit der ID " + id + " ist nicht vorhanden!");
             } else {
                 console.log("Put hat funktioniert");
-                res.status(200).type("application/json").send(user);
+                res.status(200).type("application/json").send(neuerUser);
             }
             db.close();
         });
@@ -214,12 +212,18 @@ app.post('/user/:id/wochenplan', function (req, res) {
 
 // PUT
 //keine _id im body übergeben!!!
+//
 app.put('/user/:id/wochenplan', function (req, res) {
     var id = req.params.id;
     var neuerTag = req.body;
     var neuerWochenplan;
+
+    var datum = req.query.date;
+
     MongoClient.connect(url, function (err, db) {
         var collection = db.collection("wochenplan");
+
+
 
         async.series([
             //der Wochenplan wird aus der datenbank gehohlt, um die Tage in den Wochenplan anzuhängen
@@ -243,7 +247,19 @@ app.put('/user/:id/wochenplan', function (req, res) {
             //Datenbak gespeichert
             function (callback) {
                 var length = neuerWochenplan.wochenplan.length;
-                neuerWochenplan.wochenplan[length] = neuerTag;
+                var i;
+                var vorhanden = false;
+                for (i = 0; i < length; i++) {
+                    if (neuerTag.datum == neuerWochenplan[i].datum) {
+                        i = length;
+                        neuerWochenplan[i] = neuerTag;
+                        vorhanden = true;
+                    }
+                }
+                if (!vorhanden) {
+                    neuerWochenplan.wochenplan[length] = neuerTag;
+                }
+
                 collection.updateOne({
                     userid: id
                 }, {
@@ -304,7 +320,8 @@ app.post('/user/:id/einkaufszettel', function (req, res) {
         "Mittwoch": [],
         "Donnerstag": [],
         "Freitag": [],
-        "Samstag/Sonntag": []
+        "Samstag/Sonntag": [],
+        "SchlaueListe": []
     };
     einkaufszettel.userid = id;
     MongoClient.connect(url, function (err, db) {
@@ -443,7 +460,7 @@ app.post('/user/:id/lebensmittelbestand', function (req, res) {
 });
 
 //GET
-app.get('/user/:id/lebensmittelbstand', function (req, res) {
+app.get('/user/:id/lebensmittelbestand', function (req, res) {
     var id = req.params.id;
 
     MongoClient.connect(url, function (err, db) {
@@ -524,7 +541,7 @@ app.delete('/user/:id/lebensmittelbestand', function (req, res) {
 app.post('/rezept', function (req, res) {
     var rezept = req.body;
     MongoClient.connect(url, function (err, db) {
-        console.log(rezept);
+        //console.log(rezept);
         var collection = db.collection("rezepte");
 
         //überprüfen ob der Benutzer schon vorhanden ist.
@@ -591,18 +608,23 @@ app.get('/rezept/:id', function (req, res) {
         function (callback) {
             //liste der Zutaten über die Lebensmitteldatenbank laufen lassen 
             var data = [];
+            var zutaten = [];
             var i;
             for (i = 0; i < rezept.Zutaten.length; i++) {
-                data[i] = rezept.Zutaten[i].name;
+                zutaten[i] = rezept.Zutaten[i].name;
             }
 
             MongoClient.connect(url, function (err, db) {
                 db.collection('lebensmittel', function (err, collection) {
                     collection.find({
-                        name: {
-                            $in: data
+                        lebensmittel: {
+                            $elemMatch: {
+                                name: {
+                                    $in: zutaten
+                                }
+                            }
                         }
-                    }, function (err, item) {
+                    }, function (err, cursor) {
                         var i = 0;
                         cursor.each(function (err, item) {
                             if (item == null && i == 0) {
@@ -610,6 +632,7 @@ app.get('/rezept/:id', function (req, res) {
                                 res.status('404').type('text').send("Es sind keine Lebensmittel vorhanden!")
                             } else if (item == null) {
                                 console.log("Get Lebensmittel hat funktioniert");
+                                console.log(data);
                                 callback();
                             } else {
                                 data.push(item);
@@ -1052,6 +1075,7 @@ app.get('/rezepte', function (req, res) {
 
 // /rezept/:id/bild
 // POST
+/*
 app.post('/rezept/:id/bild', function (req, res) {
 
 });
@@ -1064,7 +1088,7 @@ app.get('/rezept/:id/bild', function (req, res) {
 // DELETE
 app.delete('/rezepte/:id/bild', function (req, res) {
 
-});
+});*/
 
 
 
