@@ -18,12 +18,6 @@ var app = express();
 var server = http.createServer(app);
 app.use(jsonParser);
 
-//var monk = require('monk');
-// Wo liegt die DB?
-//var db = monk('localhost:27017/datenbankname');
-
-// TODO 404 abfangen
-
 
 var url = 'mongodb://localhost:27017/user';
 MongoClient.connect(url, function (err, db) {
@@ -77,7 +71,7 @@ app.post('/user', function (req, res) {
 });
 // Put
 // TODO user an onupdate übergeben
-//keine _id im body übergeben!!!
+//
 app.put('/user/:id', function (req, res) {
     var neuerUser = req.body;
     var id = req.params.id;
@@ -910,7 +904,7 @@ app.get('/rezepte', function (req, res) {
                 for (i = 0; i < data.length; i++) {
                     for (k = 0; k < data[i].Zutaten.length; k++) {
                         for (t = 0; t < resteMenge.reste.length; t++) {
-                            if (data[i].Zutaten[k].name == resteMenge.reste[t].name && data[i].Zutaten[k].menge <= resteMenge.reste[t].menge) {
+                            if (data[i].Zutaten[k].name == resteMenge.reste[t].name && parseInt(data[i].Zutaten[k].menge) <= parseInt(resteMenge.reste[t].menge)) {
                                 rezepteFürResteverwertung.push(data[i]);
                                 k = data[i].Zutaten.length;
                                 t = resteMenge.reste.length;
@@ -977,100 +971,113 @@ app.get('/rezepte', function (req, res) {
 
         async.series([
             function (callback) {
-                MongoClient.connect(url, function (err, db) {
-                    db.collection('rezepte', function (err, collection) {
-                        collection.find({}, function (err, cursor) {
-                            var i = 0;
-                            cursor.each(function (err, item) {
-                                if (item == null && i == 0) {
-                                    console.log("Kein Rezept vorhanden");
-                                    res.status('404').type('text').send("Es sind keine Rezepte vorhanden!");
-                                } else if (item == null) {
-                                    console.log(i + " Rezepte sind eingespeichert");
-                                    callback();
-                                } else {
-                                    data.push(item);
-                                    i++;
-                                    console.log(i);
-                                }
+                    MongoClient.connect(url, function (err, db) {
+                        db.collection('rezepte', function (err, collection) {
+                            collection.find({}, function (err, cursor) {
+                                var i = 0;
+                                cursor.each(function (err, item) {
+                                    if (item == null && i == 0) {
+                                        console.log("Kein Rezept vorhanden");
+                                        res.status('404').type('text').send("Es sind keine Rezepte vorhanden!");
+                                    } else if (item == null) {
+                                        console.log(i + " Rezepte sind eingespeichert");
+                                        callback();
+                                    } else {
+                                        data.push(item);
+                                        i++;
+                                        console.log(i);
+                                    }
+                                });
                             });
                         });
                     });
-                });
             },
             function (callback) {
-                var i, k = 0,
-                    t = 0;
-                var temp = [];
+                    var i, k = 0,
+                        t = 0;
+                    var temp = [];
 
-                //todo: falls jemand keine like/dislike abgibt, muss das berücksichtigt werden.
+                    //todo: falls jemand keine like/dislike abgibt, muss das berücksichtigt werden.
 
-                for (i = 0; i < data.length; i++) {
+                    for (i = 0; i < data.length; i++) {
 
-                    if ((data[i].Kategorie == filter.kategorie || alleKategorien) && data[i].Schwierigkeitsgrad == filter.schwierigkeitsgrad && data[i].Zeitbedarf <= filter.maxDauer) {
-                        if (!allLike) {
+                        console.log(data[i].Kategorie + " " + filter.kategorie);
+                        console.log(data[i].Schwierigkeitsgrad + " " + filter.schwierigkeitsgrad + "1");
+                        console.log(data[i].Zeitbedarf + " " + filter.maxDauer + "1");
+
+                        console.log(data[i].Kategorie == filter.kategorie || alleKategorien);
+                        console.log(data[i].Schwierigkeitsgrad == filter.schwierigkeitsgrad);
+                        console.log(parseInt(data[i].Zeitbedarf) < parseInt(filter.maxDauer));
+
+                        if ((data[i].Kategorie == filter.kategorie || alleKategorien) && data[i].Schwierigkeitsgrad == filter.schwierigkeitsgrad && parseInt(data[i].Zeitbedarf) <= parseInt(filter.maxDauer)) {
+                            if (!allLike) {
+                                k = 0;
+                                while (k < data[i].Zutaten.length) {
+                                    t = 0;
+                                    while (t < filter.like.length) {
+                                        if (data[i].Zutaten[k].name == filter.like[t]) { //!!
+                                            temp.push(data[i]);
+                                            t = filter.like.length;
+                                            k = data[i].Zutaten.length;
+                                            console.log("bla bin hier !")
+                                        }
+                                        t++;
+                                    }
+                                    k++;
+                                }
+                            } else {
+                                console.log("allLike");
+                                temp.push(data[i]);
+                            }
+                        } else {
+                            console.log("test");
+                        }
+                    }
+
+                    data = temp;
+                    console.log("callback2");
+                    console.log(data);
+                    callback();
+
+                            },
+                            function (callback) {
+                    var i, k = 0,
+                        t = 0;
+                    var test = false;
+                    var temp = [];
+                    if (!noDislike) {
+                        for (i = 0; i < data.length; i++) {
+                            test = false;
                             k = 0;
                             while (k < data[i].Zutaten.length) {
                                 t = 0;
-                                while (t < filter.like.length) {
-                                    if (data[i].Zutaten[k].name == filter.like[t]) { //!!
-                                        temp.push(data[i]);
-                                        t = filter.like.length;
+                                while (t < filter.dislike.length) {
+                                    if (data[i].Zutaten[k].name == filter.dislike[t]) { //!!
+                                        test = true;
+                                        t = filter.dislike.length;
                                         k = data[i].Zutaten.length;
                                     }
                                     t++;
                                 }
                                 k++;
                             }
-                        } else {
-                            console.log("allLike");
-                            temp.push(data[i]);
-                        }
-                    }
-                }
-                data = temp;
-                console.log("callback2");
-                console.log(data);
-                callback();
-
-            },
-            function (callback) {
-                var i, k = 0,
-                    t = 0;
-                var test = false;
-                var temp = [];
-                if (!noDislike) {
-                    for (i = 0; i < data.length; i++) {
-                        test = false;
-                        k = 0;
-                        while (k < data[i].Zutaten.length) {
-                            t = 0;
-                            while (t < filter.dislike.length) {
-                                if (data[i].Zutaten[k].name == filter.dislike[t]) { //!!
-                                    test = true;
-                                    t = filter.dislike.length;
-                                    k = data[i].Zutaten.length;
-                                }
-                                t++;
+                            if (test == false) {
+                                temp.push(data[i]);
                             }
-                            k++;
                         }
-                        if (test == false) {
-                            temp.push(data[i]);
-                        }
+                        data = temp;
+                        console.log("callback3");
+                        //console.log(data);
+                        callback();
+                    } else {
+                        callback();
+                        console.log("keine Filterung bei dislike");
                     }
-                    data = temp;
-                    console.log("callback3");
-                    //console.log(data);
-                    callback();
-                } else {
-                    callback();
-                    console.log("keine Filterung bei dislike");
-                }
 
-            }], function (err) {
-            res.send(data);
-        });
+                            }],
+            function (err) {
+                res.send(data);
+            });
     }
 });
 
